@@ -1,0 +1,9 @@
+ESP32 -> TFT SCREEN
+3.3v -> BLK
+D2 -> CS
+D15 -> DC
+D12 -> RES
+D13 -> SDA
+D14 -> SCL
+3.3v -> VCC
+GND -> GND

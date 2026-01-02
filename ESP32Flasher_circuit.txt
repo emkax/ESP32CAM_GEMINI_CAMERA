@@ -1,0 +1,15 @@
+//FLASH ESP32cam via ESP32 circuit
+
+ESP32 -> ESP32CAM
+RX -> UOR
+TX -> UOT
+GND -> GND
+3.3v -> 3.3v
+
+ESP32 (EN) -> ESP32 (GND)
+
+ENABLE PROGRAMMING MODE
+GND -> Io0 (can be done using a button so pressed whne flashing)
+
+REFERENCE:
+https://www.youtube.com/watch?v=Sb08leLWOgA
