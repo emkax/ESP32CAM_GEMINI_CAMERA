@@ -31,6 +31,7 @@
 // ======================== BUTTON ========================
 #define BUTTON_CAPTURE 14
 
+#define API_URL "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key="
 
 unsigned long lastCapturePress = 0;
 unsigned long lastScrollPress = 0;
@@ -122,7 +123,7 @@ String getGeminiResponseSync(const String& base64Image, const String& prompt = "
   HTTPClient http;
 
   // Construct the API URL
-  String url = "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=";
+  String url = API_URL;
   url += gemini_api_key;
   // url += "1";  // make api key invalid
 
