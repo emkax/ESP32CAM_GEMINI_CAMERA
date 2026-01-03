@@ -30,6 +30,9 @@ JPEGDEC jpeg;
 // Button Pins
 #define BTN_PIN  5
 
+#define BLK_CHANNEL 0
+#define BLK_FREQ 5000
+#define BLK_RESOLUTION 8   // 0–255
 
 // ======================== DISPLAY SETUP ========================
 Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
@@ -52,7 +55,15 @@ int JPEGDraw(JPEGDRAW* pDraw) {
 extern const uint8_t dejavu_sans[];
 
 
-String globalResult = "CONNECTING..";
+String globalResult = "f(x) = \\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx; "
+                  "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}; "
+                  "a^2 + b^2 = c^2; "
+                  "e^{i\\pi} + 1 = 0; "
+                  "\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}; "
+                  "(a + b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k; "
+                  "e^x = \\sum_{n=0}^{\\infty} \\frac{x^n}{n!}; "
+                  "\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\epsilon_0}; "
+                  "i \\hbar \\frac{\\partial}{\\partial t} \\Psi = \\hat{H} \\Psi;";
 
 int marginLeft = 8;
 int marginTop = 8;
@@ -472,60 +483,55 @@ String processLatex(const String& t) {
   return out;
 }
 
-int totalTextHeight = 0;
+void clearFullGRAM(uint16_t color) {
+  // Overdraw larger-than-screen area
+  tft.fillRect(0, 0, 180, 150, color);
+}
 
+
+int totalTextHeight = 0;
 void drawWrappedText() {
-  tft.fillScreen(ST77XX_BLACK);
+
+  // BACKGROUND → Adafruit_GFX
+  clearFullGRAM(ST77XX_BLACK);
+
+  // Warna teks via U8g2 wrapper
+  u8g2.setForegroundColor(ST77XX_WHITE);
+  u8g2.setBackgroundColor(ST77XX_BLACK);
+
+  // OPTIONAL tapi disarankan
+  u8g2.setFontMode(1); // transparent background (lebih bersih)
 
   int x = marginLeft;
   int y = marginTop - scrollOffset;
 
-  u8g2.setForegroundColor(ST77XX_WHITE);
-  u8g2.setBackgroundColor(ST77XX_BLACK);
-
-  // Use a font that supports Unicode
-  // Available fonts: u8g2_font_unifont_t_symbols, u8g2_font_helvR08_tf, etc.
-  // u8g2.setFont(noto_full);
   u8g2.setFont(dejavu_sans);
-
 
   String processedText = processLatex(globalResult);
 
   totalTextHeight = marginTop;
 
-  int charHeight = 10;   // Font height
-  int avgCharWidth = 6;  // Average character width
+  int charHeight = 10;
+  int avgCharWidth = 6;
 
-  // Word wrapping with Unicode support
   int startIdx = 0;
   while (startIdx < processedText.length()) {
+
     int lineEnd = startIdx;
     int lastSpace = -1;
     int lineWidth = 0;
 
-    // Find how much text fits on this line
     while (lineEnd < processedText.length()) {
       char c = processedText[lineEnd];
 
-      if (c == '\n') {
-        break;
-      }
+      if (c == '\n') break;
+      if (c == ' ') lastSpace = lineEnd;
 
-      if (c == ' ') {
-        lastSpace = lineEnd;
-      }
-
-      // Estimate width (rough approximation)
       int charW = avgCharWidth;
-      if ((uint8_t)c >= 0xC0) {
-        charW = avgCharWidth + 2;  // Unicode chars slightly wider
-      }
+      if ((uint8_t)c >= 0xC0) charW += 2;
 
       if (lineWidth + charW > virtualWidth) {
-        // Line too long, wrap at last space
-        if (lastSpace > startIdx) {
-          lineEnd = lastSpace;
-        }
+        if (lastSpace > startIdx) lineEnd = lastSpace;
         break;
       }
 
@@ -533,32 +539,28 @@ void drawWrappedText() {
       lineEnd++;
     }
 
-    // Extract line text
     String lineText = processedText.substring(startIdx, lineEnd);
 
-    // Draw line if visible
-    if (y + charHeight > 0 && y < 80) {
-      u8g2.setCursor(x, y + charHeight - 2);  // Adjust for baseline
+    if (y + charHeight > 0 && y < 160) {
+      u8g2.setCursor(x, y + charHeight);
       u8g2.print(lineText);
     }
 
-    // Move to next line
     y += charHeight;
     totalTextHeight += charHeight;
 
-    // Skip spaces at start of next line
     startIdx = lineEnd;
-    if (startIdx < processedText.length() && (processedText[startIdx] == ' ' || processedText[startIdx] == '\n')) {
+    if (startIdx < processedText.length() &&
+        (processedText[startIdx] == ' ' || processedText[startIdx] == '\n')) {
       startIdx++;
     }
-
-    if (lineEnd >= processedText.length()) break;
   }
 
   if (y > marginTop) {
     totalTextHeight = y - marginTop + scrollOffset;
   }
 }
+
 
 
 
@@ -569,6 +571,8 @@ void drawWrappedText() {
 #define RXD2 16
 #define TXD2 17
 
+
+
 void setup() {
   Serial.begin(115200);
   Serial2.begin(9600  , SERIAL_8N1, RXD2, TXD2);
@@ -577,10 +581,16 @@ void setup() {
   SPI.begin(TFT_SCLK, -1, TFT_MOSI, -1);
   tft.initR(INITR_MINI160x80);
   tft.setRotation(1);
+  tft.invertDisplay(true);
+  
+  clearFullGRAM(ST77XX_BLACK);
+
   u8g2.begin(tft);
 
   pinMode(BTN_PIN, INPUT_PULLUP);
-  // pinMode(BTN_SCROLL, INPUT_PULLUP); -> PROBLEMATIK
+
+  // ledcAttach(TFT_BLK, BLK_FREQ, BLK_RESOLUTION);
+  // ledcWrite(BLK_CHANNEL, 180); 
 
   Serial.println("System ready!");
   drawWrappedText();
