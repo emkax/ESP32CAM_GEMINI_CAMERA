@@ -339,9 +339,12 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
+  Serial.println("<GEMINI_START>");
   Serial.println("\nLOG : WiFi connected");
   Serial.print("LOG : Camera Ready! IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.println("<GEMINI_END>");
+
   server.on("/", []() {
     String html =
       "<h2>Gemini Configuration</h2>"
@@ -390,16 +393,14 @@ void setup() {
 
 
   pinMode(BUTTON_CAPTURE,INPUT_PULLUP);
-
-
-  test_code();
+  // test_code();
 }
 
-void test_code(){
-  String promptToUse = (gemini_prompt == "") ? DEFAULT_PROMPT : gemini_prompt;
-  globalResult = captureAndAnalyzeSync(promptToUse);
-  Serial.println(globalResult);
-}
+// void test_code(){
+//   String promptToUse = (gemini_prompt == "") ? DEFAULT_PROMPT : gemini_prompt;
+//   globalResult = captureAndAnalyzeSync(promptToUse);
+//   Serial.println(globalResult);
+// }
 
 int buttonState;
 int lastButtonState = HIGH;
@@ -413,7 +414,7 @@ void loop() {
 
   if (reading != lastButtonState) {
     lastDebounceTime = millis();
-    Serial.println("BUTTON PRESSED");
+    // Serial.println("BUTTON PRESSED");
   }
   if ((millis() - lastDebounceTime) > debounceDelay) {
     if (reading != buttonState) {
