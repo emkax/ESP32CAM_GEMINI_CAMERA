@@ -55,15 +55,7 @@ int JPEGDraw(JPEGDRAW* pDraw) {
 extern const uint8_t dejavu_sans[];
 
 
-String globalResult = "f(x) = \\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx; "
-                  "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}; "
-                  "a^2 + b^2 = c^2; "
-                  "e^{i\\pi} + 1 = 0; "
-                  "\\int_{-\\infty}^{\\infty} e^{-x^2} \\, dx = \\sqrt{\\pi}; "
-                  "(a + b)^n = \\sum_{k=0}^{n} \\binom{n}{k} a^{n-k} b^k; "
-                  "e^x = \\sum_{n=0}^{\\infty} \\frac{x^n}{n!}; "
-                  "\\nabla \\cdot \\mathbf{E} = \\frac{\\rho}{\\epsilon_0}; "
-                  "i \\hbar \\frac{\\partial}{\\partial t} \\Psi = \\hat{H} \\Psi;";
+String globalResult = "connecting...";
 
 int marginLeft = 8;
 int marginTop = 8;
@@ -603,53 +595,53 @@ String buffer = "";
 String geminiData = "";
 enum RxState { LOGS, GEMINI_DATA };
 RxState receiving_state = LOGS;
-void loop() {
-   while (Serial2.available()) {
-    char c = Serial2.read();
-    buffer += c;
+  void loop() {
+    while (Serial2.available()) {
+      char c = Serial2.read();
+      buffer += c;
 
-    if (buffer.endsWith("\n")) {
-      buffer.trim();   // remove newline
+      if (buffer.endsWith("\n")) {
+        buffer.trim();   // remove newline
 
-      // ---- STATE SWITCH TOKENS ----
-      if (buffer == "<GEMINI_START>") {
-        receiving_state = GEMINI_DATA;
-        geminiData = "";
-      }
-      else if (buffer == "<GEMINI_END>") {
-        receiving_state = LOGS;
-
-        globalResult = geminiData;
-        drawWrappedText();
-      }
-      // ---- DATA ----
-      else {
-        if (receiving_state == LOGS) {
-          Serial.println(buffer);
-        } else {
-          geminiData += buffer + "\n";
+        // ---- STATE SWITCH TOKENS ----
+        if (buffer == "<GEMINI_START>") {
+          receiving_state = GEMINI_DATA;
+          geminiData = "";
         }
+        else if (buffer == "<GEMINI_END>") {
+          receiving_state = LOGS;
+
+          globalResult = geminiData;
+          drawWrappedText();
+        }
+        // ---- DATA ----
+        else {
+          if (receiving_state == LOGS) {
+            Serial.println(buffer);
+          } else {
+            geminiData += buffer + "\n";
+          }
+        }
+
+        buffer = "";
       }
-
-      buffer = "";
     }
-  }
 
-  bool buttonPressed = (digitalRead(BTN_PIN) == LOW);
-  
-  if (buttonPressed && (millis() - lastPress > debounceDelay)) {
-    Serial.println("Scroll button pressed");
-    Serial.println(globalResult);
-    lastPress = millis();
-
-    scrollOffset += scrollStep;
-
-    int maxScroll = totalTextHeight - virtualHeight;
-    if (maxScroll < 0) maxScroll = 0;
+    bool buttonPressed = (digitalRead(BTN_PIN) == LOW);
     
-    if (scrollOffset > maxScroll) {
-      scrollOffset = 0;
+    if (buttonPressed && (millis() - lastPress > debounceDelay)) {
+      Serial.println("Scroll button pressed");
+      Serial.println(globalResult);
+      lastPress = millis();
+
+      scrollOffset += scrollStep;
+
+      int maxScroll = totalTextHeight - virtualHeight;
+      if (maxScroll < 0) maxScroll = 0;
+      
+      if (scrollOffset > maxScroll) {
+        scrollOffset = 0;
+      }
+      drawWrappedText();
     }
-    drawWrappedText();
   }
-}

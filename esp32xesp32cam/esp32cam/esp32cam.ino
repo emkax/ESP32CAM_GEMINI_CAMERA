@@ -33,11 +33,21 @@
 
 #define API_URL "https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key="
 
+
+//Setting API KEY
+#include <Preferences.h>
+Preferences prefs;
+WebServer server(80);
+
+String gemini_api_key = API_KEY;
+String gemini_prompt;
+
+const char* DEFAULT_PROMPT = "describe what is this.";
+
 unsigned long lastCapturePress = 0;
 unsigned long lastScrollPress = 0;
 
-// Your Gemini API key
-const char* gemini_api_key = API_KEY;  // Replace with your actual key
+
 int httpResponseCode = 0;
 
 
@@ -125,11 +135,17 @@ String getGeminiResponseSync(const String& base64Image, const String& prompt = "
   // Construct the API URL
   String url = API_URL;
   url += gemini_api_key;
-  // url += "1";  // make api key invalid
+
+  Serial.println("<GEMINI_START>");
+  Serial.println("LOGS : using api key = " + gemini_api_key);
+  Serial.println("LOGS : using prompt = " + prompt);
+  Serial.println("<GEMINI_END>");
 
   // Begin HTTP connection
   if (!http.begin(client, url)) {
+    Serial.println("<GEMINI_START>");
     Serial.println("HTTP begin failed");
+    Serial.println("<GEMINI_END>");
     return "ERROR: HTTP begin failed";
   }
 
@@ -176,11 +192,15 @@ String getGeminiResponseSync(const String& base64Image, const String& prompt = "
       }
     } else {
       response = "ERROR: HTTP error code " + String(httpResponseCode) + ". Response: " + response;
+      Serial.println("<GEMINI_START>");
       Serial.println(response);
+      Serial.println("<GEMINI_END>");
     }
   } else {
     response = "ERROR: HTTP POST failed: " + http.errorToString(httpResponseCode);
+    Serial.println("<GEMINI_START>");
     Serial.println(response);
+    Serial.println("<GEMINI_END>");
   }
 
   // Clean up HTTP connection
@@ -280,6 +300,26 @@ String globalResult = "";
 void setup() {
   Serial.begin(9600);
 
+  prefs.begin("gemini", false);
+
+  gemini_api_key = prefs.getString("api_key", "");
+  gemini_prompt  = prefs.getString("prompt", "");
+
+  if (gemini_api_key == API_KEY || gemini_api_key == "") {
+    Serial.println("LOG : Using default API");
+  } else {
+    Serial.println("LOG : Gemini API key loaded");
+    Serial.println(gemini_api_key);
+  }
+
+  if (gemini_prompt == "") {
+    Serial.println("LOG : Using default prompt");
+  } else {
+    Serial.println("LOG : Custom prompt loaded");
+    Serial.println(gemini_prompt);
+  }
+
+
   //---------------------------
   //check if it's turning on
   // Attach pin to PWM channel (NEW API)
@@ -302,8 +342,63 @@ void setup() {
   Serial.println("\nLOG : WiFi connected");
   Serial.print("LOG : Camera Ready! IP address: ");
   Serial.println(WiFi.localIP());
+  server.on("/", []() {
+    String html =
+      "<h2>Gemini Configuration</h2>"
+      "<form action='/set' method='POST'>"
+
+      "<label>API Key</label><br>"
+      "<input type='text' name='key' style='width:100%'><br><br>"
+
+      "<label>Prompt (optional)</label><br>"
+      "<textarea name='prompt' rows='4' style='width:100%'>"
+      + gemini_prompt +
+      "</textarea><br>"
+      "<small>Leave empty to use default prompt.</small><br><br>"
+
+      "<input type='submit' value='Save'>"
+      "</form>";
+
+    server.send(200, "text/html", html);
+  });
+
+  server.on("/set", HTTP_POST, []() {
+
+    if (server.hasArg("key")) {
+      gemini_api_key = server.arg("key");
+      gemini_api_key.trim();
+      prefs.putString("api_key", gemini_api_key);
+    }
+
+    if (server.hasArg("prompt")) {
+      gemini_prompt = server.arg("prompt");
+      gemini_prompt.trim();
+      prefs.putString("prompt", gemini_prompt);
+    }
+
+    server.send(200, "text/html",
+      "<h3>Saved</h3>"
+      "<p>API key and prompt updated.</p>"
+      "<p>You may now close this page.</p>"
+    );
+
+    Serial.println("LOG : Gemini config updated");
+  });
+
+  server.begin();
+  Serial.println("LOG : Config web server started");
+
+
   pinMode(BUTTON_CAPTURE,INPUT_PULLUP);
 
+
+  test_code();
+}
+
+void test_code(){
+  String promptToUse = (gemini_prompt == "") ? DEFAULT_PROMPT : gemini_prompt;
+  globalResult = captureAndAnalyzeSync(promptToUse);
+  Serial.println(globalResult);
 }
 
 int buttonState;
@@ -313,6 +408,7 @@ unsigned long lastDebounceTime = 0;
 unsigned long debounceDelay = 50; 
 
 void loop() {
+  server.handleClient();
   int reading = digitalRead(BUTTON_CAPTURE);
 
   if (reading != lastButtonState) {
@@ -324,10 +420,13 @@ void loop() {
       buttonState = reading;
 
       if (buttonState == LOW) {
-        globalResult = captureAndAnalyzeSync(); //uncomment for it to actualy fetch
+        String promptToUse = (gemini_prompt == "") ? DEFAULT_PROMPT : gemini_prompt;
+        globalResult = captureAndAnalyzeSync(promptToUse);
         if (globalResult == "" || httpResponseCode != 200) {
-          Serial.println("LOG : failed to fetch gemini");
-          Serial.println("LOG : ERROR MSG = globalResult");
+            Serial.println("<GEMINI_START>");
+            Serial.println("ERROR:");
+            Serial.println(globalResult);
+            Serial.println("<GEMINI_END>");
         }else{
           Serial.println("<GEMINI_START>");
           Serial.println(globalResult);
