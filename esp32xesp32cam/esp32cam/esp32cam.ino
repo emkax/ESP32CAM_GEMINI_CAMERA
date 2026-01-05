@@ -290,8 +290,8 @@ bool initCamera() {
   return true;
 }
 
-String ssid = "ya";
-String password = "michael28";
+String ssid = "YOUR_SSID";
+String password = "YOUR_PASSWORD";
 
 String globalResult = "";
 
